@@ -51,16 +51,25 @@ sudo dnf install -y gcc-toolset-13 gcc-toolset-13-gcc-c++
 source /opt/rh/gcc-toolset-13/enable 2>/dev/null
 
 # CMake
-mkdir temp || echo "It's okay."
-cd temp
-curl -OL https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3.tar.gz
-tar zxvf cmake-4.2.3.tar.gz 
-cd cmake-4.2.3/
-sudo ./bootstrap
-sudo make -j 4 && sudo make install -j 4
-cmake --version
-cd ../..
-sudo rm -rf temp
+cmake_required_version="4.2.3"
+cmake_installed_version="$(cmake --version 2>/dev/null | awk 'NR == 1 { print $3 }' || true)"
+
+if [ -n "${cmake_installed_version}" ] &&
+    [ "$(printf '%s\n%s\n' "${cmake_required_version}" "${cmake_installed_version}" | sort -V | head -n 1)" = "${cmake_required_version}" ]; then
+    echo "CMake ${cmake_installed_version} is already installed; skipping source build."
+else
+    echo "CMake ${cmake_required_version} or newer was not found; building it from source."
+    mkdir -p temp
+    cd temp
+    curl -OL https://github.com/Kitware/CMake/releases/download/v4.2.3/cmake-4.2.3.tar.gz
+    tar zxvf cmake-4.2.3.tar.gz
+    cd cmake-4.2.3/
+    sudo ./bootstrap
+    sudo make -j 4 && sudo make install -j 4
+    cmake --version
+    cd ../..
+    sudo rm -rf temp
+fi
 
 #------------------#
 # Build CXLMemSim
@@ -117,13 +126,25 @@ mkdir build || echo "It's okay"
 cd build
 
 # Download bzImage
-gdown 1yKD0QG8x-wyFsVV1t5ZhNm_A3zUwlpQe
+if [ -f bzImage ]; then
+    echo "bzImage already exists; skipping download."
+else
+    gdown 1yKD0QG8x-wyFsVV1t5ZhNm_A3zUwlpQe
+fi
 
 # Download QEMU image
-gdown 1ga5CN3_H1qfReer99w_QcVOYb6R21JHI -O qemu0.img
+if [ -f qemu0.img ]; then
+    echo "qemu0.img already exists; skipping download."
+else
+    gdown 1ga5CN3_H1qfReer99w_QcVOYb6R21JHI -O qemu0.img
+fi
 
 # Copy
-cp qemu0.img qemu1.img
+if [ -f qemu1.img ]; then
+    echo "qemu1.img already exists; skipping copy."
+else
+    cp qemu0.img qemu1.img
+fi
 
 echo "QEMU images should be here."
 ls -alFh bzImage qemu0.img qemu1.img 
